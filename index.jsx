@@ -2,13 +2,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, FileDocument, FileCode, FilePresentation, Grid, WebsiteNetwork, Plus, Search } from '@openai/apps-sdk-ui/components/Icon'
 import { makeLatestRequestGate } from './latest-request.js'
+import { formatProjectDate, projectTimestamp } from './project-date.js'
 
 const LOCAL_TEMPLATE_ID = 'document'
 const TYPES = {
   website: { label: 'Website', icon: WebsiteNetwork },
   'mini-app': { label: 'Mini-app', icon: FileCode },
   visualization: { label: 'Visualization', icon: Grid },
-  document: { label: 'PDF', icon: FileDocument },
+  document: { label: 'LaTeX document', icon: FileDocument },
   spreadsheet: { label: 'Spreadsheet', icon: Grid },
   presentation: { label: 'Presentation', icon: FilePresentation },
 }
@@ -71,7 +72,7 @@ export default function App({ appId }) {
 
   const refresh = useCallback(async () => {
     const requestId = refreshGate.current.begin()
-    if (!projectApi?.templates) { setLoadError('Refresh Möbius to load Projects support.'); setLoading(false); return }
+    if (!projectApi?.templates) { setLoadError('Projects support is unavailable. Try again or check the app installation.'); setLoading(false); return }
     setLoading(true)
     setLoadError('')
     try {
@@ -115,14 +116,14 @@ export default function App({ appId }) {
   async function openProject(id) {
     setError('')
     try { await projectApi.open(id) }
-    catch (cause) { setError(cause?.message || 'Could not open this project. Refresh the list and try again.') }
+    catch (cause) { setError(cause?.message || 'Could not open this project. Try again.') }
   }
   async function browse() {
     setError('')
     try { await projectApi.browse() }
     catch (cause) { setError(cause?.message || 'Could not open Projects. Try again.') }
   }
-  const rows = useMemo(() => [...projects].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))
+  const rows = useMemo(() => [...projects].sort((a, b) => (projectTimestamp(b.updated_at) || 0) - (projectTimestamp(a.updated_at) || 0))
     .filter(row => row.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase())), [projects, search])
   const canCreate = templates.some(row => row.id === LOCAL_TEMPLATE_ID)
   return (
@@ -135,11 +136,11 @@ export default function App({ appId }) {
         </header>
         <div className="lpx-create">
           <button type="button" className="lpx-primary" disabled={creating || !canCreate} onClick={() => void createProject()}><Plus width={18} height={18} aria-hidden="true" />{creating ? 'Creating…' : 'New document'}</button>
-          {!loading && !loadError && !canCreate && <p className="lpx-error" role="alert">This project type is unavailable. Refresh the list or check the app installation.</p>}
+          {!loading && !loadError && !canCreate && <p className="lpx-error" role="alert">This project type is unavailable. Check the app installation.</p>}
         </div>
         {error && <p className="lpx-error" role="alert">{error}</p>}
         <section className="lpx-section" aria-labelledby="lpx-projects-title">
-          <header className="lpx-section-head"><h2 id="lpx-projects-title">Your projects</h2><button type="button" className="lpx-secondary" disabled={loading} onClick={() => void refresh()}>{loading ? 'Refreshing…' : 'Refresh'}</button></header>
+          <header className="lpx-section-head"><h2 id="lpx-projects-title">Your projects</h2></header>
           {loadError && <div className="lpx-error" role="alert"><p>{loadError}</p><button type="button" className="lpx-secondary" onClick={() => void refresh()}>Try again</button></div>}
           {projects.length > 0 && <label className="lpx-search"><Search width={18} height={18} aria-hidden="true" /><input type="search" aria-label="Find a project" placeholder="Find a project" value={search} onChange={event => setSearch(event.target.value)} /></label>}
           {loading && projects.length === 0 ? <p className="lpx-empty" role="status">Loading your projects…</p>
@@ -148,15 +149,15 @@ export default function App({ appId }) {
             : <div className="lpx-list">{rows.map(project => {
               const type = TYPES[project.template?.id] || { label: 'Project', icon: FileDocument }
               const Icon = type.icon
-              const date = new Date(project.updated_at || '')
+              const date = formatProjectDate(project.updated_at)
               return <button type="button" className="lpx-project" key={project.id} onClick={() => void openProject(project.id)}>
                 <span className="lpx-project-icon" aria-hidden="true" style={{ '--project-row-accent': /^#[0-9a-f]{6}$/i.test(project.color || '') ? project.color : 'var(--text)' }}><Icon width={18} height={18} /></span>
-                <span className="lpx-project-copy"><strong>{project.name}</strong><small>{type.label}{!Number.isNaN(date.getTime()) && ` · ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}</small></span>
+                <span className="lpx-project-copy"><strong>{project.name}</strong><small>{type.label}{date && ` · ${date}`}</small></span>
                 <ChevronRight width={16} height={16} aria-hidden="true" />
               </button>
             })}</div>}
         </section>
-        <footer className="lpx-footer"><button type="button" className="lpx-secondary" onClick={() => void browse()}>All Projects & project types <ChevronRight width={14} height={14} aria-hidden="true" /></button></footer>
+        <footer className="lpx-footer"><button type="button" className="lpx-secondary" onClick={() => void browse()}>All projects <ChevronRight width={14} height={14} aria-hidden="true" /></button></footer>
       </div>
     </main>
   )

@@ -9,13 +9,14 @@ const builder = read('project-builder.sh')
 const guidance = read('latex-project.md')
 
 test('LaTeX declares one first-class document project contract', () => {
-  assert.equal(manifest.version, '3.0.2')
+  assert.equal(manifest.version, '3.0.3')
   assert.equal(manifest.embeds_agent, false)
   assert.deepEqual(manifest.source_files, [
     'latex-project.md',
     'project-builder.sh',
     'templates/main.tex',
     'latest-request.js',
+    'project-date.js',
   ])
   assert.equal(manifest.offline_capable, false)
   assert.deepEqual(manifest.offline, {
@@ -61,4 +62,14 @@ test('the PDF builder stays project-scoped while guidance supports standalone Pa
   assert.match(guidance, /When there is no `\$PROJECT_ROOT`/)
   assert.match(guidance, /"template_id": "latex:document"/)
   assert.match(guidance, /Add to Projects/)
+})
+
+test('launcher copy avoids a manual refresh while preserving retry and reconnect', () => {
+  assert.match(source, /<h2 id="lpx-projects-title">Your projects<\/h2>/)
+  assert.match(source, /document: \{ label: 'LaTeX document'/)
+  assert.match(source, />All projects <ChevronRight/)
+  assert.doesNotMatch(source, /Refreshing…|>Refresh<|Refresh the list|Refresh Möbius/)
+  assert.match(source, /onClick=\{\(\) => void refresh\(\)\}>Try again/)
+  assert.match(source, /if \(online\) void refresh\(\)/)
+  assert.match(source, /refreshGate\.current\.isCurrent\(requestId\)/)
 })
